@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control Diario de Hábitos y Ahorro</title>
+    <!-- Chart.js para renderizar la gráfica -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+            --success: #22c55e;
+            --savings: #059669;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 650px;
+            background: var(--card);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        header {
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin: 0 0 12px 0;
+        }
+
+        .date-picker-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .date-picker-container label {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        input[type="date"] {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .progress-bar-bg {
+            background: var(--border);
+            height: 12px;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .progress-bar-fill {
+            background: var(--success);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .stats {
+            font-size: 0.875rem;
+            color: #64748b;
+        }
+
+        .activity-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+
+        .activity-item {
+            display: flex;
+            align-items: center;
+            padding: 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .activity-item:hover {
+            background: #f1f5f9;
+        }
+
+        .activity-item.completed {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+        }
+
+        .activity-item.completed .activity-title {
+            text-decoration: line-through;
+            color: #166534;
+        }
+
+        input[type="checkbox"] {
+            width: 22px;
+            height: 22px;
+            margin-right: 14px;
+            cursor: pointer;
+            accent-color: var(--success);
+        }
+
+        .activity-content {
+            display: flex;
+            flex: 1;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .activity-title {
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        .savings-inline {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .savings-inline span {
+            color: var(--savings);
+            font-weight: 700;
+        }
+
+        .savings-inline input[type="number"] {
+            width: 80px;
+            padding: 4px 8px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .chart-section {
+            border-top: 1px solid var(--border);
+            padding-top: 20px;
+            margin-bottom: 24px;
+        }
+
+        .chart-section h2 {
+            font-size: 1.1rem;
+            margin: 0 0 12px 0;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 320px;
+            width: 100%;
+        }
+
+        .history-section {
+            border-top: 1px solid var(--border);
+            padding-top: 16px;
+        }
+
+        .history-section h2 {
+            font-size: 1.1rem;
+            margin: 0 0 12px 0;
+        }
+
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            padding: 8px 12px;
+            background: #f8fafc;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+        }
+
+        .reset-btn {
+            margin-top: 16px;
+            width: 100%;
+            padding: 10px;
+            border: none;
+            background: #fee2e2;
+            color: #991b1b;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .reset-btn:hover {
+            background: #fca5a5;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Control Diario de Hábitos</h1>
+        <div class="date-picker-container">
+            <label for="selectedDate">Fecha:</label>
+            <input type="date" id="selectedDate" onchange="changeDate()">
+        </div>
+        <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="progressFill"></div>
+        </div>
+        <div class="stats" id="statsText">0 de 11 completadas (0%)</div>
+    </header>
+
+    <div class="activity-list" id="activityList"></div>
+
+    <div class="chart-section">
+        <h2>Frecuencia y Escala de Hábitos Cumplidos</h2>
+        <div class="chart-container">
+            <canvas id="habitsChart"></canvas>
+        </div>
+    </div>
+
+    <div class="history-section">
+        <h2>Historial de Registro y Ahorros</h2>
+        <div class="history-list" id="historyList"></div>
+    </div>
+
+    <button class="reset-btn" onclick="resetSelectedDay()">Reiniciar Día Seleccionado</button>
+</div>
+
+<script>
+    const activities = [
+        { id: 1, name: "Levantarse antes de las 5 AM" },
+        { id: 2, name: "Correr" },
+        { id: 3, name: "Ejercicio" },
+        { id: 4, name: "Ganarle al tiempo" },
+        { id: 5, name: "Leer" },
+        { id: 6, name: "Aprender algo nuevo" },
+        { id: 7, name: "Hacer tarea" },
+        { id: 8, name: "Nueva actividad" },
+        { id: 9, name: "Ahorrar", isSavings: true },
+        { id: 10, name: "Ser mejor" },
+        { id: 11, name: "Puedo seguir todo el día" }
+    ];
+
+    let fullHistory = JSON.parse(localStorage.getItem('habitTrackerHistory')) || {};
+    let habitsChart = null;
+    
+    const dateInput = document.getElementById('selectedDate');
+    dateInput.value = new Date().toISOString().split('T')[0];
+
+    function changeDate() {
+        render();
+    }
+
+    function render() {
+        const currentDate = dateInput.value;
+        const dayData = fullHistory[currentDate] || { tasks: {}, savings: 0 };
+        const dayState = dayData.tasks || {};
+        
+        const listContainer = document.getElementById('activityList');
+        listContainer.innerHTML = '';
+        
+        let completedCount = 0;
+
+        activities.forEach(act => {
+            const isChecked = !!dayState[act.id];
+            if (isChecked) completedCount++;
+
+            const item = document.createElement('div');
+            item.className = `activity-item ${isChecked ? 'completed' : ''}`;
+
+            let innerHTML = `
+                <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleActivity(${act.id})">
+                <div class="activity-content">
+                    <span class="activity-title" onclick="toggleActivity(${act.id})">${act.name}</span>
+            `;
+
+            if (act.isSavings) {
+                const savingsVal = dayData.savings !== undefined && dayData.savings !== 0 ? dayData.savings : '';
+                innerHTML += `
+                    <div class="savings-inline">
+                        <span>$</span>
+                        <input type="number" id="inlineSavings" placeholder="0.00" step="0.01" min="0" value="${savingsVal}" oninput="saveInlineSavings()">
+                    </div>
+                `;
+            }
+
+            innerHTML += `</div>`;
+            item.innerHTML = innerHTML;
+            listContainer.appendChild(item);
+        });
+
+        const total = activities.length;
+        const percentage = Math.round((completedCount / total) * 100);
+        document.getElementById('progressFill').style.width = `${percentage}%`;
+        document.getElementById('statsText').innerText = `${completedCount} de ${total} completadas (${percentage}%)`;
+
+        renderHistoryList();
+        renderChart();
+    }
+
+    function toggleActivity(id) {
+        const currentDate = dateInput.value;
+        if (!fullHistory[currentDate]) {
+            fullHistory[currentDate] = { tasks: {}, savings: 0 };
+        }
+        if (!fullHistory[currentDate].tasks) {
+            fullHistory[currentDate].tasks = {};
+        }
+
+        fullHistory[currentDate].tasks[id] = !fullHistory[currentDate].tasks[id];
+        saveToLocalStorage();
+        render();
+    }
+
+    function saveInlineSavings() {
+        const currentDate = dateInput.value;
+        const savingsInput = document.getElementById('inlineSavings');
+        if (!savingsInput) return;
+        
+        const amount = parseFloat(savingsInput.value) || 0;
+
+        if (!fullHistory[currentDate]) {
+            fullHistory[currentDate] = { tasks: {}, savings: 0 };
+        }
+        
+        fullHistory[currentDate].savings = amount;
+
+        if (amount > 0) {
+            if (!fullHistory[currentDate].tasks) fullHistory[currentDate].tasks = {};
+            fullHistory[currentDate].tasks[9] = true;
+        }
+
+        saveToLocalStorage();
+        updateStatsAndHistory();
+    }
+    
+    function updateStatsAndHistory() {
+        const currentDate = dateInput.value;
+        const dayData = fullHistory[currentDate] || { tasks: {}, savings: 0 };
+        const dayState = dayData.tasks || {};
+        
+        let completedCount = 0;
+        activities.forEach(act => {
+            if (dayState[act.id]) completedCount++;
+        });
+        
+        const total = activities.length;
+        const percentage = Math.round((completedCount / total) * 100);
+        document.getElementById('progressFill').style.width = `${percentage}%`;
+        document.getElementById('statsText').innerText = `${completedCount} de ${total} completadas (${percentage}%)`;
+        
+        const items = document.querySelectorAll('.activity-item');
+        if(items.length >= 9) {
+            const ahorroItem = items[8]; 
+            const checkbox = ahorroItem.querySelector('input[type="checkbox"]');
+            if(dayState[9]) {
+                ahorroItem.classList.add('completed');
+                checkbox.checked = true;
+            } else {
+                ahorroItem.classList.remove('completed');
+                checkbox.checked = false;
+            }
+        }
+
+        renderHistoryList();
+        renderChart();
+    }
+
+    function saveToLocalStorage() {
+        localStorage.setItem('habitTrackerHistory', JSON.stringify(fullHistory));
+    }
+
+    function renderHistoryList() {
+        const historyContainer = document.getElementById('historyList');
+        historyContainer.innerHTML = '';
+
+        const dates = Object.keys(fullHistory).sort().reverse();
+
+        if (dates.length === 0) {
+            historyContainer.innerHTML = '<div style="font-size:0.85rem; color:#64748b;">Sin registros previos aún.</div>';
+            return;
+        }
+
+        dates.forEach(date => {
+            const dayData = fullHistory[date] || {};
+            const tasks = dayData.tasks || {};
+            const savings = dayData.savings || 0;
+            const completed = Object.values(tasks).filter(Boolean).length;
+            
+            if (completed > 0 || savings > 0) {
+                const item = document.createElement('div');
+                item.className = 'history-item';
+                item.innerHTML = `
+                    <span><strong>${date}</strong></span>
+                    <span>${completed} / ${activities.length} actividades | <strong>$${savings.toFixed(2)}</strong></span>
+                `;
+                historyContainer.appendChild(item);
+            }
+        });
+    }
+
+    function renderChart() {
+        const ctx = document.getElementById('habitsChart').getContext('2d');
+        
+        const labels = activities.map(act => act.name);
+        const counts = activities.map(act => {
+            let totalTimes = 0;
+            Object.values(fullHistory).forEach(day => {
+                if (day.tasks && day.tasks[act.id]) {
+                    totalTimes++;
+                }
+            });
+            return totalTimes;
+        });
+
+        if (habitsChart) {
+            habitsChart.destroy();
+        }
+
+        habitsChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Días completados',
+                    data: counts,
+                    backgroundColor: '#22c55e',
+                    borderColor: '#16a34a',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        },
+                        title: {
+                            display: true,
+                            text: 'Número de Días'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+
+    function resetSelectedDay() {
+        const currentDate = dateInput.value;
+        if (confirm(`¿Quieres reiniciar los registros del día ${currentDate}?`)) {
+            delete fullHistory[currentDate];
+            saveToLocalStorage();
+            render();
+        }
+    }
+
+    render();
+</script>
+
+</body>
+</html>
