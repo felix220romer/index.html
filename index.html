@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Control Diario de Hábitos y Ahorro</title>
+    <!-- Chart.js para renderizar la gráfica -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --primary: #2563eb;
@@ -27,7 +29,7 @@
 
         .container {
             width: 100%;
-            max-width: 600px;
+            max-width: 650px;
             background: var(--card);
             padding: 24px;
             border-radius: 12px;
@@ -155,6 +157,23 @@
             outline: none;
         }
 
+        .chart-section {
+            border-top: 1px solid var(--border);
+            padding-top: 20px;
+            margin-bottom: 24px;
+        }
+
+        .chart-section h2 {
+            font-size: 1.1rem;
+            margin: 0 0 12px 0;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 320px;
+            width: 100%;
+        }
+
         .history-section {
             border-top: 1px solid var(--border);
             padding-top: 16px;
@@ -217,6 +236,13 @@
 
     <div class="activity-list" id="activityList"></div>
 
+    <div class="chart-section">
+        <h2>Frecuencia y Escala de Hábitos Cumplidos</h2>
+        <div class="chart-container">
+            <canvas id="habitsChart"></canvas>
+        </div>
+    </div>
+
     <div class="history-section">
         <h2>Historial de Registro y Ahorros</h2>
         <div class="history-list" id="historyList"></div>
@@ -241,6 +267,7 @@
     ];
 
     let fullHistory = JSON.parse(localStorage.getItem('habitTrackerHistory')) || {};
+    let habitsChart = null;
     
     const dateInput = document.getElementById('selectedDate');
     dateInput.value = new Date().toISOString().split('T')[0];
@@ -293,6 +320,7 @@
         document.getElementById('statsText').innerText = `${completedCount} de ${total} completadas (${percentage}%)`;
 
         renderHistoryList();
+        renderChart();
     }
 
     function toggleActivity(id) {
@@ -360,6 +388,7 @@
         }
 
         renderHistoryList();
+        renderChart();
     }
 
     function saveToLocalStorage() {
@@ -391,6 +420,62 @@
                     <span>${completed} / ${activities.length} actividades | <strong>$${savings.toFixed(2)}</strong></span>
                 `;
                 historyContainer.appendChild(item);
+            }
+        });
+    }
+
+    function renderChart() {
+        const ctx = document.getElementById('habitsChart').getContext('2d');
+        
+        const labels = activities.map(act => act.name);
+        const counts = activities.map(act => {
+            let totalTimes = 0;
+            Object.values(fullHistory).forEach(day => {
+                if (day.tasks && day.tasks[act.id]) {
+                    totalTimes++;
+                }
+            });
+            return totalTimes;
+        });
+
+        if (habitsChart) {
+            habitsChart.destroy();
+        }
+
+        habitsChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Días completados',
+                    data: counts,
+                    backgroundColor: '#22c55e',
+                    borderColor: '#16a34a',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        },
+                        title: {
+                            display: true,
+                            text: 'Número de Días'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
             }
         });
     }
